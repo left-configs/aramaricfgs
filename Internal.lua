@@ -1,39 +1,42 @@
 local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
-local targetCPS = 200
-local interval = 1 / targetCPS
-local lastClick = 0
+local State = {
+    vPressed = false,
+}
 
-local isVHeld = false
+-- 検知されにくい安全かつ確実なクリック関数
+local function SafeClick()
+    if typeof(mouse1click) == "function" then
+        mouse1click()
+    elseif VirtualInputManager then
+        -- VirtualInputManagerを使った低負荷なクリックシミュレート
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        task.wait(0.001)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    end
+end
 
--- Vキーの検知
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
+-- Vキーの押下状態を監視
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
     if input.KeyCode == Enum.KeyCode.V then
-        isVHeld = true
+        State.vPressed = true
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input, gameProcessed)
+UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.V then
-        isVHeld = false
+        State.vPressed = false
     end
 end)
 
--- 高速クリックの処理
+-- 高速連打ループ（フレーム単位で自然かつ高速に実行）
 RunService.RenderStepped:Connect(function()
-    if isVHeld then
-        local currentTime = tick()
-        if currentTime - lastClick >= interval then
-            lastClick = currentTime
-            
-            -- マウスの左クリックをシミュレート
-            local mouseLocation = UserInputService:GetMouseLocation()
-            VirtualUser:Button1Down(Vector2.new(mouseLocation.X, mouseLocation.Y))
-            task.spawn(function()
-                VirtualUser:Button1Up(Vector2.new(mouseLocation.X, mouseLocation.Y))
-            end)
-        end
+    if State.vPressed then
+        SafeClick()
     end
 end)
+
+print("Fast Clicker Loaded Successfully!")
